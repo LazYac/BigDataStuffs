@@ -1,0 +1,177 @@
+package com.shapira.examples.streams.wordcount;
+import java.io.BufferedReader;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.IOException;
+import java.nio.channels.SelectionKey;
+import java.util.Properties;
+import java.util.Random;
+
+import org.apache.kafka.clients.producer.Producer;
+import org.apache.kafka.clients.producer.ProducerRecord;
+
+import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.common.serialization.Serdes;
+import org.apache.kafka.common.serialization.Serdes.StringSerde;
+import org.apache.kafka.streams.KafkaStreams;
+import org.apache.kafka.streams.KeyValue;
+import org.apache.kafka.streams.StreamsConfig;
+import org.apache.kafka.streams.Topology;
+import org.apache.kafka.streams.processor.Processor;
+import org.apache.kafka.streams.processor.ProcessorContext;
+import org.apache.kafka.streams.processor.ProcessorSupplier;
+import org.apache.kafka.streams.processor.PunctuationType;
+import org.apache.kafka.streams.processor.Punctuator;
+import org.apache.kafka.streams.state.KeyValueIterator;
+import org.apache.kafka.streams.state.KeyValueStore;
+import org.apache.kafka.streams.state.Stores;
+
+import java.util.Locale;
+import java.util.concurrent.CountDownLatch;
+import org.apache.kafka.common.serialization.Serde;
+
+import org.apache.kafka.streams.StreamsBuilder;
+import org.apache.kafka.streams.kstream.KStream;
+import org.apache.kafka.streams.kstream.KTable;
+import org.apache.kafka.streams.kstream.Produced;
+import org.apache.kafka.streams.kstream.TimeWindowedKStream;
+import org.apache.kafka.streams.kstream.TimeWindows;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.regex.Pattern;
+
+/*
+ duration: continuous.
+protocol_type: symbolic.
+service: symbolic.
+flag: symbolic.
+src_bytes: continuous.
+dst_bytes: continuous.
+land: symbolic.
+wrong_fragment: continuous.
+urgent: continuous.
+hot: continuous.
+num_failed_logins: continuous.
+logged_in: symbolic.
+num_compromised: continuous.
+root_shell: continuous.
+su_attempted: continuous.
+num_root: continuous.
+num_file_creations: continuous.
+num_shells: continuous.
+num_access_files: continuous.
+num_outbound_cmds: continuous.
+is_host_login: symbolic.
+is_guest_login: symbolic.
+count: continuous.
+srv_count: continuous.
+serror_rate: continuous.
+srv_serror_rate: continuous.
+rerror_rate: continuous.
+srv_rerror_rate: continuous.
+same_srv_rate: continuous.
+diff_srv_rate: continuous.
+srv_diff_host_rate: continuous.
+dst_host_count: continuous.
+dst_host_srv_count: continuous.
+dst_host_same_srv_rate: continuous.
+dst_host_diff_srv_rate: continuous.
+dst_host_same_src_port_rate: continuous.
+dst_host_srv_diff_host_rate: continuous.
+dst_host_serror_rate: continuous.
+dst_host_srv_serror_rate: continuous.
+dst_host_rerror_rate: continuous.
+dst_host_srv_rerror_rate: continuous.
+ */
+public class WordCountExample{
+//0,tcp,private,S0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,200,21,1.00,1.00,0.00,0.00,0.10,0.05,0.00,255,21,0.08,0.05,0.00,0.00,1.00,1.00,0.00,0.00,neptune.
+    public class log{
+        private String protocole;
+        private String service;
+        private String flag;
+        public log(String protocole,String service,String flag){
+            this.protocole=protocole;
+            this.service=service;
+            this.flag=flag;
+        }
+        public String toString(){
+            return this.protocole+","+this.service+","+this.flag;
+        }
+    }
+   
+  public static void main(final String[] args) throws Exception {
+    final String bootstrapServers = args.length > 0 ? args[0] : "localhost:9092";
+    final Properties streamsConfiguration = new Properties();
+    // Give the Streams application a unique name.  The name must be unique in the Kafka cluster
+    // against which the application is run.
+    streamsConfiguration.put(StreamsConfig.APPLICATION_ID_CONFIG, "wordcount-lambda-example");
+    streamsConfiguration.put(StreamsConfig.CLIENT_ID_CONFIG, "wordcount-lambda-example-client");
+    // Where to find Kafka broker(s).
+    streamsConfiguration.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+    // Specify default (de)serializers for record keys and for record values.
+    streamsConfiguration.put(StreamsConfig.DEFAULT_KEY_SERDE_CLASS_CONFIG, Serdes.String().getClass().getName());
+    streamsConfiguration.put(StreamsConfig.DEFAULT_VALUE_SERDE_CLASS_CONFIG, Serdes.String().getClass().getName());
+    // Records should be flushed every 10 seconds. This is less than the default
+    // in order to keep this example interactive.
+    streamsConfiguration.put(StreamsConfig.COMMIT_INTERVAL_MS_CONFIG, 10 * 1000);
+    // For illustrative purposes we disable record caches
+    streamsConfiguration.put(StreamsConfig.CACHE_MAX_BYTES_BUFFERING_CONFIG, 0);
+
+    // Set up serializers and deserializers, which we will use for overriding the default serdes
+    // specified above.
+    final Serde<String> stringSerde = Serdes.String();
+    final Serde<Long> longSerde = Serdes.Long();
+    // In the subsequent lines we define the processing topology of the Streams application.
+    final StreamsBuilder builder = new StreamsBuilder();
+    final KStream<String, String> textLines = builder.stream("kddData");
+    final Pattern pattern = Pattern.compile(",", Pattern.UNICODE_CHARACTER_CLASS);
+    //final KTable<String, Long> wordCounts = textLines
+    final KStream<String, String> wordCounts = textLines
+    //KStream<String, String> type = textLines.map((key,value) -> new KeyValue<>(key,value.split(",")[2].toString()));
+    //KStream<String, String> type = textLines.map((key,value) -> new KeyValue<>(value.split(",")[2].toString(),key));
+    //.SelectKey((key,log)->log[2]);
+    .map((key,value) -> new KeyValue<>(key,new log(value.split(",")[1].toString(),null,null).toString()));
+    //.map((key,value) -> new KeyValue<>(key,"lol"));
+   
+
+    //.groupByKey()
+    //.aggregate(arg0, arg1, TimeWindows.of(3600000), stringSerde)
+    //.toStream
+    //.groupbyKey()
+    //.count();
+   
+
+    //KStream<String, String> type2 = textLines.map((key,value) -> new KeyValue<>(key,type.toString()));
+    //TODO TODO log logStream= new log(type.value);
+    /*final KStream<String, String> wordCounts = textLines
+    .map((key,value) -> new KeyValue<>(value.split(",")[2].toString(),key))
+    .groupByKey()
+    .aggregate(arg0, arg1)
+   */
+    // .map((key,value) -> new KeyValue<>(key,value.split(",")[2].toString().concat(",1")));
+    //.map((key,value) -> new KeyValue<>(key,value.split(",")[2].toString()));
+
+      //.flatMapValues(value -> Arrays.asList(pattern.split(value)));
+      //TODO .map((key, value) -> new KeyValue<>(key, value[3]))
+      //TODO .groupBy((key, word) -> word);
+      //TODO .count();
+    //wordCounts.map((key,value) -> new KeyValue<>(key,new Serdes(value)));
+    //TODO wordCounts.toStream().to("streams-wordcount-output", Produced.with(stringSerde, longSerde));
+    //.map((key,value) -> new KeyValue<>(key,value.toString()));
+    wordCounts.to("streams-wordcount-output", Produced.with(stringSerde,stringSerde));
+    //type2.to("streams-wordcount-output", Produced.with(stringSerde,stringSerde));
+
+    // Now that we have finished the definition of the processing topology we can actually run
+    // it via `start()`.  The Streams application as a whole can be launched just like any
+    // normal Java application that has a `main()` method.
+    final KafkaStreams streams = new KafkaStreams(builder.build(), streamsConfiguration);
+
+    streams.cleanUp();
+    streams.start();
+
+    // Add shutdown hook to respond to SIGTERM and gracefully close Kafka Streams
+    Runtime.getRuntime().addShutdownHook(new Thread(streams::close));
+  }
+
+}
